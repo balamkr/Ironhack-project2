@@ -11,7 +11,7 @@ env:
   # Replace these with your actual AWS region and EKS cluster name
   AWS_REGION: eu-central-1
   EKS_CLUSTER_NAME: taco-cluster
-  DOCKER_USER: blamkr
+  
 
 jobs:
   build-and-deploy:
