@@ -1,0 +1,67 @@
+name: CI/CD Pipeline to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+  # Replace these with your actual AWS region and EKS cluster name
+  AWS_REGION: eu-central-1
+  EKS_CLUSTER_NAME: taco-cluster
+  DOCKER_USER: blamkr
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and Push Docker Images
+      run: |
+        # Build Vote App
+        docker build -t $DOCKER_USER/vote:${{ github.sha }} ./vote
+        docker push $DOCKER_USER/vote:${{ github.sha }}
+        
+        # Build Result App
+        docker build -t $DOCKER_USER/result:${{ github.sha }} ./result
+        docker push $DOCKER_USER/result:${{ github.sha }}
+        
+        # Build Worker App
+        docker build -t $DOCKER_USER/worker:${{ github.sha }} ./worker
+        docker push $DOCKER_USER/worker:${{ github.sha }}
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install eksctl
+      run: |
+        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+        sudo mv /tmp/eksctl /usr/local/bin
+
+    - name: Update Kubeconfig
+      run: eksctl utils write-kubeconfig --cluster ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+    - name: Update Image Tags in Kubernetes Manifests
+      run: |
+        # This replaces the "latest" tag with the newly built GitHub SHA tag so K8s knows to pull the new version
+        sed -i "s|image: $DOCKER_USER/vote:latest|image: $DOCKER_USER/vote:${{ github.sha }}|g" k8s/vote-deployment.yaml
+        sed -i "s|image: $DOCKER_USER/result:latest|image: $DOCKER_USER/result:${{ github.sha }}|g" k8s/result-deployment.yaml
+        sed -i "s|image: $DOCKER_USER/worker:latest|image: $DOCKER_USER/worker:${{ github.sha }}|g" k8s/worker.yaml
+
+    - name: Apply Kubernetes Manifests
+      run: kubectl apply -f k8s/
