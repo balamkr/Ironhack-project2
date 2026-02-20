@@ -53,6 +53,15 @@ jobs:
         curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
         sudo mv /tmp/eksctl /usr/local/bin
 
+    - name: Create EKS Cluster if Missing 
+      run: | 
+        if ! aws eks describe-cluster --name $EKS_CLUSTER_NAME --region $AWS_REGION >/dev/null 2>&1; then 
+          echo "Cluster not found. Creating EKS cluster..." 
+          eksctl create cluster --name $EKS_CLUSTER_NAME --region $AWS_REGION --nodes 3 --node-type t3.medium --managed 
+        else 
+          echo "Cluster already exists. Skipping creation." 
+        fi
+
     - name: Update Kubeconfig
       run: eksctl utils write-kubeconfig --cluster ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
