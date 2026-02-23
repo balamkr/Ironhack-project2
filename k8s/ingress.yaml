@@ -9,7 +9,7 @@ spec:
   rules:
   - http:
       paths:
-      # Static files for Result App
+      # Rule for Result assets
       - path: /()(.*\.js|.*\.css|.*\.png)
         pathType: ImplementationSpecific
         backend:
@@ -17,7 +17,7 @@ spec:
             name: result
             port:
               number: 80
-      # Static files for Vote App
+      # Rule for Vote assets - THIS IS THE KEY
       - path: /static(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -25,7 +25,6 @@ spec:
             name: vote
             port:
               number: 80
-      # Main Vote App
       - path: /vote(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -33,7 +32,6 @@ spec:
             name: vote
             port:
               number: 80
-      # Main Result App
       - path: /result(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
