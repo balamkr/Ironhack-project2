@@ -3,21 +3,22 @@ kind: Ingress
 metadata:
   name: voting-app-ingress
   annotations:
+    # $2 refers to the second capture group (.*)
     nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /vote(/|$)(.*)
-        pathType: Prefix
+      - path: /vote(/|$)(.*)  # Group 1: (/|$), Group 2: (.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: vote
             port:
               number: 80
-      - path: /result(/|$)(.*)
-        pathType: Prefix
+      - path: /result(/|$)(.*) # Group 1: (/|$), Group 2: (.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: result

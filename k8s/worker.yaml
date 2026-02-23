@@ -13,5 +13,15 @@ spec:
         app: worker
     spec:
       containers:
-      - name: worker
-        image: blamkr/worker:latest
+        - name: worker
+          image: blamkr/worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: POSTGRES_HOST
+              value: "db"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"

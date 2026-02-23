@@ -15,5 +15,6 @@ spec:
       containers:
       - name: result
         image: blamkr/result:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80

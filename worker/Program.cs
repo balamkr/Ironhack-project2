@@ -1,7 +1,6 @@
 using System;
 using System.Data.Common;
 using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Newtonsoft.Json;
@@ -17,34 +16,35 @@ namespace Worker
             try
             {
                 // Fetch configuration from environment variables
-                var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "db";
-                var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME") ?? "postgres";
-                var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "postgres";
-                var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "postgres";
-                
+                var dbHost = Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "db";
+                var dbUsername = Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres";
+                var dbPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres";
+                var dbName = Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "postgres";
+
                 var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis";
 
                 // Construct the connection strings
                 var pgConnectionString = $"Server={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName}";
                 Console.WriteLine($"Database connection string: {pgConnectionString}");
-                var redisConnectionString = redisHost;
+
+                // Redis connection string (hostname only)
+                var redisConnectionString = $"{redisHost}:6379";
 
                 var pgsql = OpenDbConnection(pgConnectionString);
                 var redisConn = OpenRedisConnection(redisConnectionString);
                 var redis = redisConn.GetDatabase();
 
-                // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
-                // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
+                // Keep-alive workaround for PostgreSQL
                 var keepAliveCommand = pgsql.CreateCommand();
                 keepAliveCommand.CommandText = "SELECT 1";
 
                 var definition = new { vote = "", voter_id = "" };
+
                 while (true)
                 {
-                    // Slow down to prevent CPU spike, only query each 100ms
                     Thread.Sleep(100);
 
-                    // Reconnect redis if down
+                    // Reconnect Redis if down
                     if (redisConn == null || !redisConn.IsConnected)
                     {
                         Console.WriteLine("Reconnecting Redis");
@@ -65,7 +65,7 @@ namespace Worker
                             pgsql = OpenDbConnection(pgConnectionString);
                         }
                         else
-                        { // Normal +1 vote requested
+                        {
                             UpdateVote(pgsql, vote.voter_id, vote.vote);
                         }
                     }
@@ -118,18 +118,14 @@ namespace Worker
             return connection;
         }
 
-        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
+        private static ConnectionMultiplexer OpenRedisConnection(string connectionString)
         {
-            // Use IP address to workaround https://github.com/StackExchange/StackExchange.Redis/issues/410
-            var ipAddress = GetIp(hostname);
-            Console.WriteLine($"Found redis at {ipAddress}");
-
             while (true)
             {
                 try
                 {
-                    Console.Error.WriteLine("Connecting to redis");
-                    return ConnectionMultiplexer.Connect(ipAddress);
+                    Console.Error.WriteLine($"Connecting to redis at {connectionString}");
+                    return ConnectionMultiplexer.Connect(connectionString);
                 }
                 catch (RedisConnectionException)
                 {
@@ -138,13 +134,6 @@ namespace Worker
                 }
             }
         }
-
-        private static string GetIp(string hostname)
-            => Dns.GetHostEntryAsync(hostname)
-                .Result
-                .AddressList
-                .First(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .ToString();
 
         private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
         {
@@ -168,3 +157,4 @@ namespace Worker
         }
     }
 }
+
