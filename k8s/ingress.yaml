@@ -9,7 +9,7 @@ spec:
   rules:
   - http:
       paths:
-      # NEW RULE: This catches JS/CSS files requested from the root
+      # Static files for Result App
       - path: /()(.*\.js|.*\.css|.*\.png)
         pathType: ImplementationSpecific
         backend:
@@ -17,6 +17,15 @@ spec:
             name: result
             port:
               number: 80
+      # Static files for Vote App
+      - path: /static(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: vote
+            port:
+              number: 80
+      # Main Vote App
       - path: /vote(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -24,17 +33,11 @@ spec:
             name: vote
             port:
               number: 80
+      # Main Result App
       - path: /result(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
           service:
             name: result
-            port:
-              number: 80
-      - path: /static(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: vote
             port:
               number: 80
