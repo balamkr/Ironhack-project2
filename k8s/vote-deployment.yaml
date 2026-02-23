@@ -17,3 +17,9 @@ spec:
         image: blamkr/vote:latest
         ports:
         - containerPort: 80
+        # FIX: Explicitly set Redis variables to avoid K8s auto-injection conflicts
+        env:
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_HOST
+          value: "redis"
